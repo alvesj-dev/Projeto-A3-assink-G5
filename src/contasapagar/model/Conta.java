@@ -23,6 +23,18 @@ public class Conta {
 
         this.saldoDevedor = valorOriginal;
     }
+            if (valorOriginal.compareTo(BigDecimal.ZERO) <= 0){
+            throw new IllegalArgumentException("O valor deve ser maior que zero.");
+        }
+        if (documento == null || documento.isBlank()) {
+            throw new IllegalArgumentException("Documento obrigatorio");
+        }
+        if (descricao == null || descricao.isBlank()){
+            throw new IllegalArgumentException("Descricao obrigatoria.");
+        }
+        if (beneficiario == null || documento.isBlank()){
+            throw new IllegalArgumentException("Beneficiario obrigatorio.");
+        }
 
     public String getDocumento() {
         return documento;
