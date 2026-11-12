@@ -32,7 +32,7 @@ public class Conta {
         if (descricao == null || descricao.isBlank()){
             throw new IllegalArgumentException("Descricao obrigatoria.");
         }
-        if (beneficiario == null || documento.isBlank()){
+        if (beneficiario == null || beneficiario.isBlank()){
             throw new IllegalArgumentException("Beneficiario obrigatorio.");
         }
 
