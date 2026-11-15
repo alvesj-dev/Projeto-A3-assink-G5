@@ -15,15 +15,8 @@ public class Conta {
     private LocalDate vencimento;
 
     public Conta(String documento, String descricao, String beneficiario, BigDecimal valorOriginal, LocalDate vencimento) {
-        this.documento = documento;
-        this.descricao = descricao;
-        this.beneficiario = beneficiario;
-        this.valorOriginal = valorOriginal;
-        this.vencimento = vencimento;
-
-        this.saldoDevedor = valorOriginal;
-    }
-            if (valorOriginal.compareTo(BigDecimal.ZERO) <= 0){
+        
+                    if (valorOriginal == null || valorOriginal.compareTo(BigDecimal.ZERO) <= 0){
             throw new IllegalArgumentException("O valor deve ser maior que zero.");
         }
         if (documento == null || documento.isBlank()) {
@@ -34,8 +27,20 @@ public class Conta {
         }
         if (beneficiario == null || beneficiario.isBlank()){
             throw new IllegalArgumentException("Beneficiario obrigatorio.");
+        }       
+        if (vencimento == null){
+        throw new IllegalArgumentException("A data de vencimento é obrigatoria.");
         }
+        
+        this.documento = documento;
+        this.descricao = descricao;
+        this.beneficiario = beneficiario;
+        this.valorOriginal = valorOriginal;
+        this.vencimento = vencimento;
 
+        this.saldoDevedor = valorOriginal;
+    }
+        
     public String getDocumento() {
         return documento;
     }
