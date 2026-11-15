@@ -1,26 +1,27 @@
 package contasapagar.service;
 
+import contasapagar.model.Conta;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.util.Arrays;
 import java.util.Locale;
 
 /*
- 
- * Finalidade : geração da estrutura inicial desta classe (vetores, sub-rotinas
- *              de inclusão, alteração, exclusão, consulta, baixa e validações)
- 
- */
+ * Finalidade : geração da estrutura inicial desta classe (vetor de Conta,
+ *              sub-rotinas de inclusão, alteração, exclusão, consulta, baixa
+ *              e validações)
 
 /**
  * Regras de negócio do sistema de Contas a Pagar.
  *
- * Os dados ficam em vetores paralelos: a posição "i" de cada vetor
- * pertence à mesma conta.
- *
- * Erros de validação lançam IllegalArgumentException com mensagem pronta
- * para ser exibida ao usuário (a tela deve pedir a redigitação do dado).
+ * As contas ficam armazenadas em um vetor de objetos Conta (classe do pacote
+ * model). Erros de validação lançam IllegalArgumentException com mensagem
+ * pronta para ser exibida ao usuário (a tela deve pedir a redigitação).
  */
 public class ContaService {
 
@@ -31,14 +32,14 @@ public class ContaService {
     private static final DateTimeFormatter FORMATO_DATA =
             DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-    // ---------- vetores de dados ----------
+    // ---------- dados ----------
 
-    private final int[] documentos = new int[CAPACIDADE];
-    private final String[] descricoes = new String[CAPACIDADE];
-    private final String[] beneficiarios = new String[CAPACIDADE];
-    private final double[] valores = new double[CAPACIDADE];       // valor do débito
-    private final double[] valoresPagos = new double[CAPACIDADE];  // soma das baixas
-    private final LocalDate[] vencimentos = new LocalDate[CAPACIDADE];
+    private final Conta[] contas = new Conta[CAPACIDADE];
+
+    // A classe Conta não permite alterar o saldo devedor depois de criada.
+    // Por isso os pagamentos (baixas) ficam neste vetor paralelo: a posição "i"
+    // de cada vetor pertence à mesma conta.
+    private final BigDecimal[] valoresPagos = new BigDecimal[CAPACIDADE];
 
     private int quantidade = 0; // quantidade de contas cadastradas
 
@@ -46,71 +47,48 @@ public class ContaService {
     // CADASTRO
     // =====================================================================
 
-    /** Inclui uma nova conta. Valida todos os campos antes de gravar. */
-    public void incluir(int documento, String descricao, String beneficiario,
-                        double valor, LocalDate vencimento) {
+    /** Inclui uma nova conta. O documento não pode estar repetido. */
+    public void incluir(String documento, String descricao, String beneficiario,
+                        BigDecimal valor, LocalDate vencimento) {
         if (quantidade >= CAPACIDADE) {
             throw new IllegalStateException("Limite de " + CAPACIDADE + " contas atingido.");
         }
         validarNovoDocumento(documento);
-        validarTexto(descricao, "Descrição");
-        validarTexto(beneficiario, "Beneficiário");
-        validarValor(valor);
-        validarVencimento(vencimento);
 
-        documentos[quantidade] = documento;
-        descricoes[quantidade] = descricao.trim();
-        beneficiarios[quantidade] = beneficiario.trim();
-        valores[quantidade] = arredondar(valor);
-        valoresPagos[quantidade] = 0;
-        vencimentos[quantidade] = vencimento;
+        contas[quantidade] = criarConta(documento, descricao, beneficiario, valor, vencimento);
+        valoresPagos[quantidade] = BigDecimal.ZERO.setScale(2);
         quantidade++;
     }
 
     /**
-     * Altera os dados de uma conta existente.
+     * Altera os dados de uma conta existente, mantendo o que já foi pago.
      * O número do documento não pode ser alterado (exclua e recadastre).
      */
-    public void alterar(int documento, String descricao, String beneficiario,
-                        double valor, LocalDate vencimento) {
+    public void alterar(String documento, String descricao, String beneficiario,
+                        BigDecimal valor, LocalDate vencimento) {
         int indice = localizar(documento);
-        validarTexto(descricao, "Descrição");
-        validarTexto(beneficiario, "Beneficiário");
-        validarValor(valor);
-        validarVencimento(vencimento);
 
-        if (arredondar(valor) < valoresPagos[indice]) {
+        Conta nova = criarConta(contas[indice].getDocumento(), descricao, beneficiario, valor, vencimento);
+
+        if (nova.getValorOriginal().compareTo(valoresPagos[indice]) < 0) {
             throw new IllegalArgumentException(
-                    "O novo valor não pode ser menor que o já pago ("
+                    "O novo valor não pode ser menor que o já pago (R$ "
                     + formatarValor(valoresPagos[indice]) + ").");
         }
-
-        descricoes[indice] = descricao.trim();
-        beneficiarios[indice] = beneficiario.trim();
-        valores[indice] = arredondar(valor);
-        vencimentos[indice] = vencimento;
+        contas[indice] = nova;
     }
 
-    /** Exclui uma conta, deslocando as seguintes para não deixar "buraco" nos vetores. */
-    public void excluir(int documento) {
+    /** Exclui uma conta, deslocando as seguintes para não deixar "buraco" no vetor. */
+    public void excluir(String documento) {
         int indice = localizar(documento);
 
         for (int i = indice; i < quantidade - 1; i++) {
-            documentos[i] = documentos[i + 1];
-            descricoes[i] = descricoes[i + 1];
-            beneficiarios[i] = beneficiarios[i + 1];
-            valores[i] = valores[i + 1];
+            contas[i] = contas[i + 1];
             valoresPagos[i] = valoresPagos[i + 1];
-            vencimentos[i] = vencimentos[i + 1];
         }
-
         quantidade--;
-        descricoes[quantidade] = null;
-        beneficiarios[quantidade] = null;
-        vencimentos[quantidade] = null;
-        documentos[quantidade] = 0;
-        valores[quantidade] = 0;
-        valoresPagos[quantidade] = 0;
+        contas[quantidade] = null;
+        valoresPagos[quantidade] = null;
     }
 
     // =====================================================================
@@ -118,35 +96,42 @@ public class ContaService {
     // =====================================================================
 
     /** Registra um pagamento (parcial ou total) e atualiza o saldo devedor. */
-    public void baixar(int documento, double valorPago) {
+    public void baixar(String documento, BigDecimal valorPago) {
         int indice = localizar(documento);
-        validarValor(valorPago);
 
-        double saldo = getSaldoDevedor(indice);
-        if (arredondar(valorPago) > saldo) {
+        if (valorPago == null || arredondar(valorPago).signum() <= 0) {
+            throw new IllegalArgumentException("O valor pago deve ser maior que zero.");
+        }
+        BigDecimal v = arredondar(valorPago);
+        BigDecimal saldo = saldoDaPosicao(indice);
+
+        if (saldo.signum() == 0) {
+            throw new IllegalArgumentException("Esta conta já está quitada.");
+        }
+        if (v.compareTo(saldo) > 0) {
             throw new IllegalArgumentException(
-                    "O valor pago não pode ser maior que o saldo devedor ("
+                    "O valor pago não pode ser maior que o saldo devedor (R$ "
                     + formatarValor(saldo) + ").");
         }
-
-        valoresPagos[indice] = arredondar(valoresPagos[indice] + valorPago);
+        valoresPagos[indice] = valoresPagos[indice].add(v);
     }
 
     // =====================================================================
     // CONSULTAS (usadas pelas telas e pelos relatórios)
     // =====================================================================
 
-    /** Retorna a posição do documento nos vetores, ou -1 se não existir. */
-    public int buscarIndice(int documento) {
-        for (int i = 0; i < quantidade; i++) {
-            if (documentos[i] == documento) {
-                return i;
-            }
-        }
-        return -1;
+    /** Retorna a conta ou null se o documento não existir. */
+    public Conta buscar(String documento) {
+        int indice = buscarIndice(documento);
+        return indice == -1 ? null : contas[indice];
     }
 
-    public boolean existe(int documento) {
+    /** Retorna a conta ou lança erro se o documento não existir. */
+    public Conta consultar(String documento) {
+        return contas[localizar(documento)];
+    }
+
+    public boolean existe(String documento) {
         return buscarIndice(documento) != -1;
     }
 
@@ -154,60 +139,49 @@ public class ContaService {
         return quantidade;
     }
 
-    public int getDocumento(int indice) {
-        validarIndice(indice);
-        return documentos[indice];
+    /** Conta da posição indicada (0 até getQuantidade() - 1). Útil para relatórios. */
+    public Conta getConta(int indice) {
+        if (indice < 0 || indice >= quantidade) {
+            throw new IllegalArgumentException("Posição inválida: " + indice);
+        }
+        return contas[indice];
     }
 
-    public String getDescricao(int indice) {
-        validarIndice(indice);
-        return descricoes[indice];
+    /** Cópia do vetor apenas com as contas cadastradas. */
+    public Conta[] listar() {
+        return Arrays.copyOf(contas, quantidade);
     }
 
-    public String getBeneficiario(int indice) {
-        validarIndice(indice);
-        return beneficiarios[indice];
+    /** Total já pago da conta. Use este método em vez de conta.getSaldoDevedor(). */
+    public BigDecimal getValorPago(Conta conta) {
+        return valoresPagos[localizar(conta.getDocumento())];
     }
 
-    /** Valor original do débito. */
-    public double getValor(int indice) {
-        validarIndice(indice);
-        return valores[indice];
-    }
-
-    public double getValorPago(int indice) {
-        validarIndice(indice);
-        return valoresPagos[indice];
-    }
-
-    /** Saldo devedor = valor do débito - total já pago. */
-    public double getSaldoDevedor(int indice) {
-        validarIndice(indice);
-        return arredondar(valores[indice] - valoresPagos[indice]);
-    }
-
-    public LocalDate getVencimento(int indice) {
-        validarIndice(indice);
-        return vencimentos[indice];
+    /**
+     * Saldo devedor atual = valor original - total pago.
+     * Atenção: conta.getSaldoDevedor() não reflete as baixas; use este método.
+     */
+    public BigDecimal getSaldoDevedor(Conta conta) {
+        return saldoDaPosicao(localizar(conta.getDocumento()));
     }
 
     /** Conta vencida = ainda tem saldo devedor e o vencimento já passou. */
-    public boolean estaVencida(int indice) {
-        validarIndice(indice);
-        return getSaldoDevedor(indice) > 0 && vencimentos[indice].isBefore(LocalDate.now());
+    public boolean estaVencida(Conta conta) {
+        return getSaldoDevedor(conta).signum() > 0
+                && conta.getVencimento().isBefore(LocalDate.now());
     }
 
     // =====================================================================
     // VALIDAÇÕES (públicas para a tela validar campo a campo)
     // =====================================================================
 
-    /** O documento deve ser positivo e ainda não cadastrado. */
-    public void validarNovoDocumento(int documento) {
-        if (documento <= 0) {
-            throw new IllegalArgumentException("O número do documento deve ser maior que zero.");
+    /** O documento deve ser informado e ainda não cadastrado. */
+    public void validarNovoDocumento(String documento) {
+        if (documento == null || documento.trim().isEmpty()) {
+            throw new IllegalArgumentException("O número do documento é obrigatório.");
         }
         if (existe(documento)) {
-            throw new IllegalArgumentException("Documento " + documento + " já cadastrado.");
+            throw new IllegalArgumentException("Documento " + documento.trim() + " já cadastrado.");
         }
     }
 
@@ -217,15 +191,9 @@ public class ContaService {
         }
     }
 
-    public void validarValor(double valor) {
-        if (Double.isNaN(valor) || Double.isInfinite(valor) || arredondar(valor) <= 0) {
+    public void validarValor(BigDecimal valor) {
+        if (valor == null || arredondar(valor).signum() <= 0) {
             throw new IllegalArgumentException("O valor deve ser maior que zero.");
-        }
-    }
-
-    public void validarVencimento(LocalDate vencimento) {
-        if (vencimento == null) {
-            throw new IllegalArgumentException("Data de vencimento inválida.");
         }
     }
 
@@ -233,18 +201,10 @@ public class ContaService {
     // CONVERSÕES (texto digitado -> tipo certo, com erro claro)
     // =====================================================================
 
-    public static int converterDocumento(String texto) {
-        try {
-            return Integer.parseInt(texto.trim());
-        } catch (NumberFormatException | NullPointerException e) {
-            throw new IllegalArgumentException("Documento inválido. Digite apenas números.");
-        }
-    }
-
     /** Aceita vírgula ou ponto como separador decimal (ex.: 150,75). */
-    public static double converterValor(String texto) {
+    public static BigDecimal converterValor(String texto) {
         try {
-            return Double.parseDouble(texto.trim().replace(",", "."));
+            return new BigDecimal(texto.trim().replace(",", "."));
         } catch (NumberFormatException | NullPointerException e) {
             throw new IllegalArgumentException("Valor inválido. Exemplo: 150,75");
         }
@@ -268,7 +228,7 @@ public class ContaService {
     }
 
     /** Ex.: 1234.5 -> "1.234,50" */
-    public static String formatarValor(double valor) {
+    public static String formatarValor(BigDecimal valor) {
         return String.format(Locale.forLanguageTag("pt-BR"), "%,.2f", valor);
     }
 
@@ -276,23 +236,46 @@ public class ContaService {
     // MÉTODOS INTERNOS
     // =====================================================================
 
+    private int buscarIndice(String documento) {
+        if (documento == null) {
+            return -1;
+        }
+        String procurado = documento.trim();
+        for (int i = 0; i < quantidade; i++) {
+            if (contas[i].getDocumento().equals(procurado)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /** Localiza o documento ou lança erro se não existir. */
-    private int localizar(int documento) {
+    private int localizar(String documento) {
         int indice = buscarIndice(documento);
         if (indice == -1) {
-            throw new IllegalArgumentException("Documento " + documento + " não encontrado.");
+            String texto = documento == null ? "" : documento.trim();
+            throw new IllegalArgumentException("Documento " + texto + " não encontrado.");
         }
         return indice;
     }
 
-    private void validarIndice(int indice) {
-        if (indice < 0 || indice >= quantidade) {
-            throw new IllegalArgumentException("Posição inválida: " + indice);
-        }
+    private BigDecimal saldoDaPosicao(int indice) {
+        return contas[indice].getValorOriginal().subtract(valoresPagos[indice]);
+    }
+
+    /** Cria a Conta já com texto sem espaços sobrando e valor com 2 casas. */
+    private Conta criarConta(String documento, String descricao, String beneficiario,
+                             BigDecimal valor, LocalDate vencimento) {
+        return new Conta(limpar(documento), limpar(descricao), limpar(beneficiario),
+                valor == null ? null : arredondar(valor), vencimento);
+    }
+
+    private String limpar(String texto) {
+        return texto == null ? null : texto.trim();
     }
 
     /** Mantém os valores com 2 casas decimais. */
-    private double arredondar(double valor) {
-        return Math.round(valor * 100.0) / 100.0;
+    private BigDecimal arredondar(BigDecimal valor) {
+        return valor.setScale(2, RoundingMode.HALF_UP);
     }
 }
