@@ -13,13 +13,6 @@ import java.util.Locale;
  */
 public class Conta {
 
-    // Limites das validações (os mesmos aplicados pela ContaService)
-    private static final int TAMANHO_MAXIMO_DOCUMENTO = 9;  // dígitos
-    private static final int TAMANHO_MAXIMO_TEXTO = 30;     // descrição e beneficiário
-    private static final BigDecimal VALOR_MAXIMO = new BigDecimal("999999999.99");
-    private static final int ANO_MINIMO = 2000;
-    private static final int ANO_MAXIMO = 2100;
-
     private String documento;
     private String descricao;
     private String beneficiario;
@@ -85,7 +78,6 @@ public class Conta {
 
     // ---------- validações ----------
 
-    /** Apenas dígitos, maior que zero e até 9 dígitos. Zeros à esquerda são ignorados. */
     private static String validarDocumento(String documento) {
         if (documento == null || documento.trim().isEmpty()) {
             throw new IllegalArgumentException("O número do documento é obrigatório.");
@@ -94,7 +86,6 @@ public class Conta {
         if (!doc.matches("\\d+")) {
             throw new IllegalArgumentException("Documento inválido. Digite apenas números.");
         }
-        doc = doc.replaceFirst("^0+", "");
         if (doc.isEmpty()) {
             throw new IllegalArgumentException("O número do documento deve ser maior que zero.");
         }
