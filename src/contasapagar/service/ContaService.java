@@ -12,10 +12,8 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * Classe     : ContaService
- * Finalidade : regras de negócio do sistema de Contas a Pagar (inclusão,
- *              alteração, exclusão, consulta, baixa e validações).
- * 
+ * Regras de negócio do sistema de Contas a Pagar: inclusão, alteração,
+ * exclusão, consulta, baixa, validações e conversões.
  *
  * As contas ficam armazenadas em um vetor de objetos Conta (classe do pacote
  * model). Erros de validação lançam IllegalArgumentException com mensagem
@@ -30,11 +28,12 @@ public class ContaService {
 
     private static final int CAPACIDADE = 100;
 
-    private static final int TAMANHO_MAXIMO_DOCUMENTO = 9;  // dígitos
-    private static final int TAMANHO_MAXIMO_TEXTO = 30;     // descrição e beneficiário
-    private static final BigDecimal VALOR_MAXIMO = new BigDecimal("999999999.99");
-    private static final int ANO_MINIMO = 2000;
-    private static final int ANO_MAXIMO = 2100;
+    // limites definidos na classe Conta (fonte única das regras)
+    private static final int TAMANHO_MAXIMO_DOCUMENTO = Conta.TAMANHO_MAXIMO_DOCUMENTO;
+    private static final int TAMANHO_MAXIMO_TEXTO = Conta.TAMANHO_MAXIMO_TEXTO;
+    private static final BigDecimal VALOR_MAXIMO = Conta.VALOR_MAXIMO;
+    private static final int ANO_MINIMO = Conta.ANO_MINIMO;
+    private static final int ANO_MAXIMO = Conta.ANO_MAXIMO;
 
     private static final DateTimeFormatter FORMATO_DATA =
             DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
@@ -72,7 +71,8 @@ public class ContaService {
         validarDados(descricao, beneficiario, valor, vencimento);
 
         BigDecimal jaPago = contas[indice].getValorPago();
-        Conta nova = criarConta(contas[indice].getDocumento(), descricao, beneficiario, valor, vencimento);
+        Conta nova = criarConta(contas[indice].getDocumento(), descricao,
+                beneficiario, valor, vencimento);
 
         if (nova.getValorOriginal().compareTo(jaPago) < 0) {
             throw new IllegalArgumentException(
@@ -223,7 +223,8 @@ public class ContaService {
         }
         if (vencimento.getYear() < ANO_MINIMO || vencimento.getYear() > ANO_MAXIMO) {
             throw new IllegalArgumentException(
-                    "O ano do vencimento deve estar entre " + ANO_MINIMO + " e " + ANO_MAXIMO + ".");
+                    "O ano do vencimento deve estar entre "
+                    + ANO_MINIMO + " e " + ANO_MAXIMO + ".");
         }
     }
 
@@ -231,12 +232,25 @@ public class ContaService {
     // CONVERSÕES (texto digitado -> tipo certo, com erro claro)
     // =====================================================================
 
-    /** Aceita vírgula ou ponto como separador decimal (ex.: 150,75). */
+    /**
+     * Converte o valor digitado em BigDecimal. Formatos aceitos:
+     *   150,75  |  150.75  |  1.234,56 (ponto como milhar)  |  150
+     * "1.500" (ponto + 3 dígitos, sem vírgula) é recusado por ser ambíguo:
+     * poderia ser 1,5 ou 1500.
+     */
     public static BigDecimal converterValor(String texto) {
-        if (texto == null || !texto.trim().matches("\\d+([.,]\\d+)?")) {
+        String t = texto == null ? "" : texto.trim();
+
+        if (t.matches("\\d{1,3}(\\.\\d{3})+")) {
+            throw new IllegalArgumentException(
+                    "Valor ambíguo. Informe os centavos (ex.: 1.500,00).");
+        }
+        if (t.matches("\\d{1,3}(\\.\\d{3})+,\\d+")) {
+            t = t.replace(".", "");               // 1.234,56 -> 1234,56
+        } else if (!t.matches("\\d+([.,]\\d+)?")) {
             throw new IllegalArgumentException("Valor inválido. Exemplo: 150,75");
         }
-        return new BigDecimal(texto.trim().replace(",", "."));
+        return new BigDecimal(t.replace(",", "."));
     }
 
     /** Converte "dd/MM/aaaa" em data, recusando datas inexistentes (ex.: 31/02/2026). */
