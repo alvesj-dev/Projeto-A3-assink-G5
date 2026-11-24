@@ -11,15 +11,11 @@ import java.time.format.ResolverStyle;
 import java.util.Arrays;
 import java.util.Locale;
 
-/*
- * Finalidade : geração da estrutura inicial desta classe (vetor de Conta,
- *              sub-rotinas de inclusão, alteração, exclusão, consulta, baixa
- *              e validações)
- 
- */
-
 /**
- * Regras de negócio do sistema de Contas a Pagar.
+ * Classe     : ContaService
+ * Finalidade : regras de negócio do sistema de Contas a Pagar (inclusão,
+ *              alteração, exclusão, consulta, baixa e validações).
+ * 
  *
  * As contas ficam armazenadas em um vetor de objetos Conta (classe do pacote
  * model). Erros de validação lançam IllegalArgumentException com mensagem
