@@ -5,13 +5,20 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 
-/*
+/**
  * Representa uma conta a pagar.
  * Informações da conta: número do documento, descrição, beneficiário, valor do
  * débito e data de vencimento. O saldo devedor começa igual ao valor original e
  * diminui a cada baixa (pagamento parcial ou total).
  */
 public class Conta {
+
+    // Limites do sistema (o ContaService usa as mesmas constantes)
+    public static final int TAMANHO_MAXIMO_DOCUMENTO = 9;  // dígitos
+    public static final int TAMANHO_MAXIMO_TEXTO = 30;     // descrição e beneficiário
+    public static final BigDecimal VALOR_MAXIMO = new BigDecimal("999999999.99");
+    public static final int ANO_MINIMO = 2000;             // ano do vencimento
+    public static final int ANO_MAXIMO = 2100;
 
     private String documento;
     private String descricao;
@@ -99,7 +106,8 @@ public class Conta {
     // ---------- validações ----------
 
     /**
-     * Verifica se o documento foi informado e contém apenas números.
+     * Verifica o documento (só números, maior que zero, até 9 dígitos) e
+     * devolve sem espaços e sem zeros à esquerda ("001" vira "1").
      */
     private static String validarDocumento(String documento) {
         if (documento == null || documento.trim().isEmpty()) {
@@ -114,6 +122,18 @@ public class Conta {
                     "Documento inválido. Digite apenas números.");
         }
 
+        doc = doc.replaceFirst("^0+", "");
+
+        if (doc.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "O número do documento deve ser maior que zero.");
+        }
+
+        if (doc.length() > TAMANHO_MAXIMO_DOCUMENTO) {
+            throw new IllegalArgumentException(
+                    "O documento deve ter no máximo " + TAMANHO_MAXIMO_DOCUMENTO + " dígitos.");
+        }
+
         return doc;
     }
 
@@ -124,6 +144,11 @@ public class Conta {
         if (texto == null || texto.trim().isEmpty()) {
             throw new IllegalArgumentException(
                     campo + " é obrigatório(a).");
+        }
+
+        if (texto.trim().length() > TAMANHO_MAXIMO_TEXTO) {
+            throw new IllegalArgumentException(
+                    campo + " deve ter no máximo " + TAMANHO_MAXIMO_TEXTO + " caracteres.");
         }
 
         return texto.trim();
@@ -142,15 +167,26 @@ public class Conta {
             throw new IllegalArgumentException(
                     "O valor deve ter no máximo 2 casas decimais.");
         }
+
+        if (valor.compareTo(VALOR_MAXIMO) > 0) {
+            throw new IllegalArgumentException(
+                    "O valor máximo permitido é R$ 999.999.999,99.");
+        }
     }
 
     /**
-     * Verifica se a data de vencimento foi informada.
+     * Verifica se a data de vencimento foi informada e se o ano é válido.
      */
     private static LocalDate validarVencimento(LocalDate vencimento) {
         if (vencimento == null) {
             throw new IllegalArgumentException(
                     "A data de vencimento é obrigatória.");
+        }
+
+        if (vencimento.getYear() < ANO_MINIMO || vencimento.getYear() > ANO_MAXIMO) {
+            throw new IllegalArgumentException(
+                    "O ano do vencimento deve estar entre "
+                    + ANO_MINIMO + " e " + ANO_MAXIMO + ".");
         }
 
         return vencimento;
