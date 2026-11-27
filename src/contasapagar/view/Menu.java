@@ -2,16 +2,21 @@ package contasapagar.view;
 
 import contasapagar.model.Conta;
 import contasapagar.service.ContaService;
+import contasapagar.service.RelatorioService;
+import java.awt.Font;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 public class Menu {
 
     private static final String TITULO = "Sistema de Contas a Pagar";
     private final ContaService contas = new ContaService();
+    private final RelatorioService relatorios = new RelatorioService(contas);
 
     public void executar() {
         String opcao;
@@ -22,11 +27,13 @@ public class Menu {
 
                     1 - Cadastro de contas
                     2 - Baixa de contas
+                    3 - Relatórios
                     0 - Finalizar
                     """);
             switch (opcao) {
                 case "1" -> menuCadastro();
                 case "2" -> menuBaixa();
+                case "3" -> menuRelatorios();
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
@@ -289,6 +296,52 @@ public class Menu {
             mostrarMensagem(titulo, "Baixa registrada. Saldo devedor: " + moeda(conta.getSaldoDevedor()));
         }
         return true;
+    }
+
+    private void menuRelatorios() {
+        String opcao;
+        do {
+            opcao = lerOpcao("""
+                    RELATÓRIOS
+
+                    1 - Contas a pagar
+                    0 - Retornar
+                    """);
+            switch (opcao) {
+                case "1" -> exibirRelatorio("Contas a pagar", relatorios::relatorioContasAPagar);
+                case "0" -> { }
+                default -> mostrarErro("Opção inválida.");
+            }
+        } while (!opcao.equals("0"));
+    }
+
+    private void exibirRelatorio(String titulo, GeradorRelatorio gerar) {
+        LocalDate inicio = lerData(titulo, "Data inicial (dd/mm/aaaa):", "");
+        if (inicio == null) {
+            return;
+        }
+        LocalDate fim = lerCampo(titulo, "Data final (dd/mm/aaaa):", texto -> {
+            LocalDate data = ContaService.converterData(texto);
+            contas.validarVencimento(data);
+            if (data.isBefore(inicio)) {
+                throw new IllegalArgumentException("A data final deve ser igual ou posterior à data inicial.");
+            }
+            return data;
+        });
+        if (fim == null) {
+            return;
+        }
+
+        JTextArea texto = new JTextArea(gerar.gerar(inicio, fim), 18, 92);
+        texto.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        texto.setEditable(false);
+        texto.setCaretPosition(0);
+        JOptionPane.showMessageDialog(null, new JScrollPane(texto), titulo, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    @FunctionalInterface
+    private interface GeradorRelatorio {
+        String gerar(LocalDate inicio, LocalDate fim);
     }
 
     private String lerOpcao(String menu) {
