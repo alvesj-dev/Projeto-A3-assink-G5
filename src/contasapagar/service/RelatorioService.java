@@ -5,7 +5,9 @@ import contasapagar.model.Conta;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 /**
  * Geração dos relatórios do sistema de Contas a Pagar.
@@ -24,6 +26,9 @@ public class RelatorioService {
     private static final int TODAS = 0;
     private static final int EM_ABERTO = 1;
     private static final int VENCIDAS = 2;
+
+    private static final DateTimeFormatter FORMATO_MES =
+            DateTimeFormatter.ofPattern("MMMM/uuuu", Locale.forLanguageTag("pt-BR"));
 
     private final ContaService contaService;
 
@@ -223,17 +228,16 @@ public class RelatorioService {
     }
 
     public String relatorioBalancoDespesas(LocalDate inicio, LocalDate fim) {
-        Balanco b = balanco(inicio, fim);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(titulo("BALANCO DE DESPESAS", inicio, fim));
-        sb.append("Contas no periodo ....: ").append(b.getQuantidade()).append("\n");
-        sb.append("Total das despesas ...: R$ ")
-                .append(ContaService.formatarValor(b.getTotalOriginal())).append("\n");
-        sb.append("Total ja pago ........: R$ ")
-                .append(ContaService.formatarValor(b.getTotalPago())).append("\n");
-        sb.append("Saldo em aberto ......: R$ ")
-                .append(ContaService.formatarValor(b.getSaldoEmAberto())).append("\n");
+        DespesaMensal[] meses = balancoMensal(inicio, fim);
+        String formato = "%-20s %20s  %-30s%n";
+        StringBuilder sb = new StringBuilder(titulo("BALANÇO DE DESPESAS NO PERÍODO", inicio, fim));
+        sb.append(String.format(formato, "MÊS", "TOTAL DE DESPESAS", "MAIOR BENEFICIÁRIO"));
+        sb.append(linha());
+        for (DespesaMensal mes : meses) {
+            sb.append(String.format(formato, mes.mes().format(FORMATO_MES),
+                    "R$ " + ContaService.formatarValor(mes.total()), mes.maiorBeneficiario()));
+        }
+        sb.append(linha());
         return sb.toString();
     }
 

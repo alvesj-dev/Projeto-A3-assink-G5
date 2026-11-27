@@ -306,11 +306,13 @@ public class Menu {
 
                     1 - Contas a pagar
                     2 - Contas vencidas
+                    3 - Balanço de despesas
                     0 - Retornar
                     """);
             switch (opcao) {
                 case "1" -> exibirRelatorio("Contas a pagar", relatorios::relatorioContasAPagar);
                 case "2" -> exibirRelatorio("Contas vencidas", relatorios::relatorioContasVencidas);
+                case "3" -> exibirRelatorio("Balanço de despesas", relatorios::relatorioBalancoDespesas);
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
