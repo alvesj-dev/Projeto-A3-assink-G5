@@ -38,10 +38,12 @@ public class Menu {
                     CADASTRO DE CONTAS
 
                     1 - Inclusão
+                    3 - Consulta
                     0 - Retornar
                     """);
             switch (opcao) {
                 case "1" -> repetir("Nova inclusão?", this::incluirConta);
+                case "3" -> repetir("Nova consulta?", this::consultarConta);
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
@@ -176,6 +178,20 @@ public class Menu {
 
     private void mostrarMensagem(String titulo, String mensagem) {
         JOptionPane.showMessageDialog(null, mensagem, titulo, JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private boolean consultarConta() {
+        String titulo = "Consulta de conta";
+        Conta conta = lerConta(titulo);
+        if (conta == null) {
+            return false;
+        }
+        mostrarMensagem(titulo, exibirDados(conta));
+        return true;
+    }
+
+    private Conta lerConta(String titulo) {
+        return lerCampo(titulo, "Número do documento:", contas::consultar);
     }
 
     private String lerOpcao(String menu) {
