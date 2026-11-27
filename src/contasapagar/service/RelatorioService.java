@@ -128,11 +128,13 @@ public class RelatorioService {
     public String relatorioContasVencidas(LocalDate inicio, LocalDate fim) {
         Conta[] lista = contasVencidas(inicio, fim);
         LocalDate hoje = LocalDate.now();
+        String formatoLinha = "%-12s %-22s %-18s %-10s %6s %14s %14s%n";
 
         StringBuilder sb = new StringBuilder();
         sb.append(titulo("CONTAS VENCIDAS", inicio, fim));
-        sb.append(String.format("%-12s %-22s %-18s %-10s %6s %13s%n",
-                "DOCUMENTO", "DESCRICAO", "BENEFICIARIO", "VENCIMENTO", "ATRASO", "SALDO (R$)"));
+        sb.append(String.format(formatoLinha,
+                "DOCUMENTO", "DESCRICAO", "BENEFICIARIO", "VENCIMENTO", "ATRASO",
+                "VALOR (R$)", "SALDO (R$)"));
         sb.append(linha());
 
         BigDecimal totalSaldo = BigDecimal.ZERO;
@@ -142,12 +144,13 @@ public class RelatorioService {
             totalSaldo = totalSaldo.add(saldo);
             long dias = ChronoUnit.DAYS.between(c.getVencimento(), hoje);
 
-            sb.append(String.format("%-12s %-22s %-18s %-10s %4dd  %13s%n",
+            sb.append(String.format(formatoLinha,
                     truncar(c.getDocumento(), 12),
                     truncar(c.getDescricao(), 22),
                     truncar(c.getBeneficiario(), 18),
                     ContaService.formatarData(c.getVencimento()),
-                    dias,
+                    dias + "d",
+                    ContaService.formatarValor(c.getValorOriginal()),
                     ContaService.formatarValor(saldo)));
         }
         if (lista.length == 0) {
@@ -254,7 +257,7 @@ public class RelatorioService {
     }
 
     private String linha() {
-        return "-".repeat(95) + "\n";
+        return "-".repeat(102) + "\n";
     }
 
     private String truncar(String texto, int tamanho) {
