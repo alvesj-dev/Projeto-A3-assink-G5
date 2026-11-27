@@ -38,11 +38,13 @@ public class Menu {
                     CADASTRO DE CONTAS
 
                     1 - Inclusão
+                    2 - Alteração
                     3 - Consulta
                     0 - Retornar
                     """);
             switch (opcao) {
                 case "1" -> repetir("Nova inclusão?", this::incluirConta);
+                case "2" -> repetir("Nova alteração?", this::alterarConta);
                 case "3" -> repetir("Nova consulta?", this::consultarConta);
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
@@ -192,6 +194,31 @@ public class Menu {
 
     private Conta lerConta(String titulo) {
         return lerCampo(titulo, "Número do documento:", contas::consultar);
+    }
+
+    private boolean alterarConta() {
+        String titulo = "Alteração de conta";
+        Conta conta = lerConta(titulo);
+        if (conta == null) {
+            return false;
+        }
+        mostrarMensagem(titulo, exibirDados(conta));
+        DadosConta dados = lerDadosConta(titulo, conta);
+        if (dados == null) {
+            return false;
+        }
+
+        Conta previa = new Conta(conta.getDocumento(), dados.descricao(), dados.beneficiario(),
+                dados.valor(), dados.vencimento());
+        if (conta.getValorPago().signum() > 0) {
+            previa.registrarPagamento(conta.getValorPago());
+        }
+        if (confirmar(titulo, exibirDados(previa) + "\n\nConfirma alteração?")) {
+            contas.alterar(conta.getDocumento(), dados.descricao(), dados.beneficiario(),
+                    dados.valor(), dados.vencimento());
+            mostrarMensagem(titulo, "Conta alterada.");
+        }
+        return true;
     }
 
     private String lerOpcao(String menu) {
