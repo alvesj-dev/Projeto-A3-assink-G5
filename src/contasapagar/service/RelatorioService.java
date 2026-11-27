@@ -160,10 +160,11 @@ public class RelatorioService {
 
     public String relatorioContasAPagar(LocalDate inicio, LocalDate fim) {
         Conta[] lista = contasAPagar(inicio, fim);
+        String formatoLinha = "%-12s %-30s %-30s %-10s %14s %14s%n";
 
         StringBuilder sb = new StringBuilder();
         sb.append(titulo("CONTAS A PAGAR", inicio, fim));
-        sb.append(String.format("%-12s %-22s %-18s %-10s %13s %13s%n",
+        sb.append(String.format(formatoLinha,
                 "DOCUMENTO", "DESCRICAO", "BENEFICIARIO", "VENCIMENTO", "VALOR (R$)", "SALDO (R$)"));
         sb.append(linha());
 
@@ -173,10 +174,10 @@ public class RelatorioService {
             BigDecimal saldo = contaService.getSaldoDevedor(c);
             totalSaldo = totalSaldo.add(saldo);
 
-            sb.append(String.format("%-12s %-22s %-18s %-10s %13s %13s%n",
-                    truncar(c.getDocumento(), 12),
-                    truncar(c.getDescricao(), 22),
-                    truncar(c.getBeneficiario(), 18),
+            sb.append(String.format(formatoLinha,
+                    c.getDocumento(),
+                    c.getDescricao(),
+                    c.getBeneficiario(),
                     ContaService.formatarData(c.getVencimento()),
                     ContaService.formatarValor(c.getValorOriginal()),
                     ContaService.formatarValor(saldo)));
@@ -193,7 +194,7 @@ public class RelatorioService {
     public String relatorioContasVencidas(LocalDate inicio, LocalDate fim) {
         Conta[] lista = contasVencidas(inicio, fim);
         LocalDate hoje = LocalDate.now();
-        String formatoLinha = "%-12s %-22s %-18s %-10s %6s %14s %14s%n";
+        String formatoLinha = "%-12s %-30s %-30s %-10s %6s %14s %14s%n";
 
         StringBuilder sb = new StringBuilder();
         sb.append(titulo("CONTAS VENCIDAS", inicio, fim));
@@ -210,9 +211,9 @@ public class RelatorioService {
             long dias = ChronoUnit.DAYS.between(c.getVencimento(), hoje);
 
             sb.append(String.format(formatoLinha,
-                    truncar(c.getDocumento(), 12),
-                    truncar(c.getDescricao(), 22),
-                    truncar(c.getBeneficiario(), 18),
+                    c.getDocumento(),
+                    c.getDescricao(),
+                    c.getBeneficiario(),
                     ContaService.formatarData(c.getVencimento()),
                     dias + "d",
                     ContaService.formatarValor(c.getValorOriginal()),
@@ -321,13 +322,6 @@ public class RelatorioService {
     }
 
     private String linha() {
-        return "-".repeat(102) + "\n";
-    }
-
-    private String truncar(String texto, int tamanho) {
-        if (texto.length() <= tamanho) {
-            return texto;
-        }
-        return texto.substring(0, tamanho - 1) + ".";
+        return "-".repeat(122) + "\n";
     }
 }
