@@ -4,6 +4,7 @@ import contasapagar.model.Conta;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 
 /**
@@ -12,10 +13,9 @@ import java.time.temporal.ChronoUnit;
  * Relatórios:
  *  1) Contas a pagar por período (com saldo devedor, vencimento no período)
  *  2) Contas vencidas por período (com saldo devedor e vencimento já passado)
- *  3) Balanço de despesas por período (totais de valor, pago e em aberto)
+ *  3) Balanço de despesas por mês (total e maior beneficiário)
  *
- * Todos usam vetores (Conta[]) e são ordenados por data de vencimento.
- * Os saldos são sempre lidos do ContaService, pois a Conta não guarda as baixas.
+ * As listagens são ordenadas por vencimento e o balanço por mês.
  */
 public class RelatorioService {
 
@@ -88,6 +88,66 @@ public class RelatorioService {
         }
         return new Balanco(doPeriodo.length, original, pago, aberto);
     }
+
+    public record DespesaMensal(YearMonth mes, BigDecimal total, String maiorBeneficiario) {
+    }
+
+    public DespesaMensal[] balancoMensal(LocalDate inicio, LocalDate fim) {
+        validarPeriodo(inicio, fim);
+        Conta[] contasDoPeriodo = filtrar(inicio, fim, TODAS);
+        YearMonth primeiroMes = YearMonth.from(inicio);
+        int quantidadeMeses = Math.toIntExact(ChronoUnit.MONTHS.between(primeiroMes, YearMonth.from(fim)) + 1);
+        DespesaMensal[] resultado = new DespesaMensal[quantidadeMeses];
+        for (int i = 0; i < quantidadeMeses; i++) {
+            YearMonth mes = primeiroMes.plusMonths(i);
+            resultado[i] = calcularDespesaMensal(mes, contasDoPeriodo);
+        }
+        return resultado;
+    }
+
+    private DespesaMensal calcularDespesaMensal(YearMonth mes, Conta[] contasDoPeriodo) {
+        String[] beneficiarios = new String[contasDoPeriodo.length];
+        BigDecimal[] totaisPorBeneficiario = new BigDecimal[contasDoPeriodo.length];
+        BigDecimal totalDoMes = BigDecimal.ZERO;
+        int quantidade = 0;
+
+        for (Conta conta : contasDoPeriodo) {
+            if (!YearMonth.from(conta.getVencimento()).equals(mes)) {
+                continue;
+            }
+            String beneficiario = conta.getBeneficiario();
+            BigDecimal valor = conta.getValorOriginal();
+            totalDoMes = totalDoMes.add(valor);
+            int indice = localizarBeneficiario(beneficiarios, quantidade, beneficiario);
+            if (indice == quantidade) {
+                beneficiarios[indice] = beneficiario;
+                totaisPorBeneficiario[indice] = BigDecimal.ZERO;
+                quantidade++;
+            }
+            totaisPorBeneficiario[indice] = totaisPorBeneficiario[indice].add(valor);
+        }
+
+        String maiorBeneficiario = "-";
+        BigDecimal maiorTotal = BigDecimal.ZERO;
+        for (int i = 0; i < quantidade; i++) {
+            int comparacao = totaisPorBeneficiario[i].compareTo(maiorTotal);
+            if (comparacao > 0 || (comparacao == 0
+                    && beneficiarios[i].compareToIgnoreCase(maiorBeneficiario) < 0)) {
+                maiorBeneficiario = beneficiarios[i];
+                maiorTotal = totaisPorBeneficiario[i];
+            }
+        }
+        return new DespesaMensal(mes, totalDoMes, maiorBeneficiario);
+    }
+
+    private int localizarBeneficiario(String[] beneficiarios, int quantidade, String nome) {
+        int i = 0;
+        while (i < quantidade && !beneficiarios[i].equalsIgnoreCase(nome)) {
+            i++;
+        }
+        return i;
+    }
+
 
     // =====================================================================
     // TEXTO PRONTO PARA EXIBIR NA TELA
