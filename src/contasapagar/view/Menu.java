@@ -40,12 +40,14 @@ public class Menu {
                     1 - Inclusão
                     2 - Alteração
                     3 - Consulta
+                    4 - Exclusão
                     0 - Retornar
                     """);
             switch (opcao) {
                 case "1" -> repetir("Nova inclusão?", this::incluirConta);
                 case "2" -> repetir("Nova alteração?", this::alterarConta);
                 case "3" -> repetir("Nova consulta?", this::consultarConta);
+                case "4" -> repetir("Nova exclusão?", this::excluirConta);
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
@@ -217,6 +219,19 @@ public class Menu {
             contas.alterar(conta.getDocumento(), dados.descricao(), dados.beneficiario(),
                     dados.valor(), dados.vencimento());
             mostrarMensagem(titulo, "Conta alterada.");
+        }
+        return true;
+    }
+
+    private boolean excluirConta() {
+        String titulo = "Exclusão de conta";
+        Conta conta = lerConta(titulo);
+        if (conta == null) {
+            return false;
+        }
+        if (confirmar(titulo, exibirDados(conta) + "\n\nConfirma exclusão?")) {
+            contas.excluir(conta.getDocumento());
+            mostrarMensagem(titulo, "Conta excluída.");
         }
         return true;
     }
