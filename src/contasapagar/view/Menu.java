@@ -21,10 +21,12 @@ public class Menu {
                     MENU PRINCIPAL
 
                     1 - Cadastro de contas
+                    2 - Baixa de contas
                     0 - Finalizar
                     """);
             switch (opcao) {
                 case "1" -> menuCadastro();
+                case "2" -> menuBaixa();
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
@@ -232,6 +234,59 @@ public class Menu {
         if (confirmar(titulo, exibirDados(conta) + "\n\nConfirma exclusão?")) {
             contas.excluir(conta.getDocumento());
             mostrarMensagem(titulo, "Conta excluída.");
+        }
+        return true;
+    }
+
+    private void menuBaixa() {
+        String opcao;
+        do {
+            opcao = lerOpcao("""
+                    MOVIMENTAÇÃO DE CONTAS
+
+                    2 - Baixa de conta
+                    0 - Retornar
+                    """);
+            switch (opcao) {
+                case "2" -> repetir("Nova baixa?", this::baixarConta);
+                case "0" -> { }
+                default -> mostrarErro("Opção inválida.");
+            }
+        } while (!opcao.equals("0"));
+    }
+
+    private boolean baixarConta() {
+        String titulo = "Baixa de conta";
+        Conta conta = lerCampo(titulo, "Número do documento:", texto -> {
+            Conta registrada = contas.consultar(texto);
+            if (registrada.getSaldoDevedor().signum() == 0) {
+                throw new IllegalArgumentException("Esta conta já está quitada.");
+            }
+            return registrada;
+        });
+        if (conta == null) {
+            return false;
+        }
+
+        BigDecimal valorAtual = conta.getSaldoDevedor();
+        BigDecimal valorPago = lerCampo(titulo, exibirDados(conta) + "\n\nValor pago:", texto -> {
+            BigDecimal pagamento = converterValorValidado(texto);
+            if (pagamento.compareTo(valorAtual) > 0) {
+                throw new IllegalArgumentException("O valor pago não pode superar " + moeda(valorAtual) + ".");
+            }
+            return pagamento;
+        });
+        if (valorPago == null) {
+            return false;
+        }
+
+        String resumo = "Documento: " + conta.getDocumento()
+                + "\nValor atual: " + moeda(valorAtual)
+                + "\nValor pago: " + moeda(valorPago)
+                + "\nValor final: " + moeda(valorAtual.subtract(valorPago));
+        if (confirmar(titulo, resumo + "\n\nConfirma baixa?")) {
+            contas.baixar(conta.getDocumento(), valorPago);
+            mostrarMensagem(titulo, "Baixa registrada. Saldo devedor: " + moeda(conta.getSaldoDevedor()));
         }
         return true;
     }
