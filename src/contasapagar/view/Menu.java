@@ -305,10 +305,12 @@ public class Menu {
                     RELATÓRIOS
 
                     1 - Contas a pagar
+                    2 - Contas vencidas
                     0 - Retornar
                     """);
             switch (opcao) {
                 case "1" -> exibirRelatorio("Contas a pagar", relatorios::relatorioContasAPagar);
+                case "2" -> exibirRelatorio("Contas vencidas", relatorios::relatorioContasVencidas);
                 case "0" -> { }
                 default -> mostrarErro("Opção inválida.");
             }
